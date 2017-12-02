@@ -211,8 +211,8 @@ rm_outliers = function (data) {
     return(ts)
   }
   
-  treshold_HR=2
-  treshold_Resp=3.5
+  treshold_HR=1.5
+  treshold_Resp=1.5
   
   data$HR1 = removeOuts(data$HR1, treshold_HR)
   data$HR2 = removeOuts(data$HR2, treshold_HR)
@@ -268,14 +268,14 @@ plotting_Resp = function(data) {
   return(Resp)
 }
 
-testing=rm_outliers(pair_1_1)
-testing=downsample(testing)
-testing=scale_fun(testing)
-test_HR=plotting_HR(testing)
-test_HR
-test_Resp = plotting_Resp(testing)
-test_Resp
-gridExtra::grid.arrange(test_HR,test_Resp)
+# testing=rm_outliers(pair_1_1)
+# testing=downsample(testing)
+# testing=scale_fun(testing)
+# test_HR=plotting_HR(testing)
+# test_HR
+# test_Resp = plotting_Resp(testing)
+# test_Resp
+# gridExtra::grid.arrange(test_HR,test_Resp)
 
 #functions give me the same data back
 
@@ -290,7 +290,7 @@ preprocess = function (data) {
 
 ```{r loop & preprocess}
 files_list = list.files(path="CleanData", full.names = T)
-
+n=1
 for (f in files_list) {
   filename = f
   save_directory="PreprocessedData/"
@@ -303,6 +303,9 @@ for (f in files_list) {
   
   #and clean the dataframe for next round
   data=data.frame()
+  
+  print(n)
+  n=1+n
 }
 
 ```
@@ -370,9 +373,11 @@ get_param_Resp = function (dat) {
   par = list(lgM =  50, steps = seq(1, 6, 1),  radiusspan = 100,  radiussample = 40, normalize = 0,  rescale = 0,  mindiagline = 2, minvertline = 2,  tw = 0,  whiteline = FALSE,  recpt = FALSE,  fnnpercent = 10,  typeami = "mindip")
   
   param = optimizeParam(dat$Resp1S,dat$Resp2S, par, min.rec = 3.5, max.rec = 4.5)
+  
   if (is.null(param)) {
     param=list(radius=NA,emddim=NA,delay=NA)
   }
+  
   return(param)
 }
 
@@ -382,41 +387,57 @@ prep_files=list.files(path='PreprocessedData',full.names = T)
 #get parameters from all and choose the common ones
 all_param_HR = data.frame()
 all_param_Resp = data.frame()
+
+n=1
 for (f in prep_files) {
   d = read.csv(file=f, header=T)
   param_HR=try(get_param_HR(d),silent = T)
   param_Resp=try(get_param_Resp(d),silent = T)
   all_param_HR=rbind(all_param_HR,param_HR)
   all_param_Resp=rbind(all_param_Resp,param_Resp)
+  
+  print(n)
+  n=n+1
 }
 
 all_param_HR=na.omit(all_param_HR)
-#delete 3th row
-all_param_HR=all_param_HR[-3,]
+
 #turn all to numeric, for some reason it's character
 all_param_HR=as.data.frame(sapply(all_param_HR,as.numeric))
+all_param_HR=na.omit(all_param_HR)
 
 all_param_Resp=na.omit(all_param_Resp)
-#delete 19th row
-all_param_Resp=all_param_Resp[-19,]
 all_param_Resp=as.data.frame(sapply(all_param_Resp,as.numeric))
+all_param_Resp=na.omit(all_param_Resp)
 
 param_all_HR = list(
   delay=median(all_param_HR$delay),
   emddim=median(all_param_HR$emddim),
-  radius=median(all_param_HR$radius)+1.2
+  radius=median(all_param_HR$radius)
 )
 param_all_HR
+# $delay
+# [1] 31
+# 
+# $emddim
+# [1] 10
+# 
+# $radius
+# [1] 2.711755
+
 
 param_all_Resp = list(
   delay=median(all_param_Resp$delay),
   emddim=median(all_param_Resp$emddim),
-  radius=median(all_param_Resp$radius)+1.2
+  radius=median(all_param_Resp$radius)+0.03
 )
-param_all_Resp
+
+param_all_Resp #delay=37.5; emddim=2; radius=1,612555
 ```
+
 ```{r run CRQA}
 #function to run crqa both for resp and HR and save output
+
 get_rqa_HR= function (df) {
   param = param_all_HR
   results=
@@ -431,6 +452,9 @@ get_rqa_HR= function (df) {
         return(results_fail)
       }
   )
+  delay=param$delay
+  embed=param$emddim
+  radius=param$radius
   RR_HR = results$RR
   DET_HR = results$DET
   maxL_HR = results$maxL #maximal trajectory
@@ -438,12 +462,13 @@ get_rqa_HR= function (df) {
   ENTR_HR = results$ENTR
   LAM_HR=results$LAM
   TT_HR = results$TT
-  rqa_df = data.frame(RR_HR,DET_HR,maxL_HR,L_HR,ENTR_HR,LAM_HR,TT_HR)
+  rqa_df = data.frame(delay,embed,radius,RR_HR,DET_HR,maxL_HR,L_HR,ENTR_HR,LAM_HR,TT_HR)
+  
   return(rqa_df)
 }
 
 get_rqa_Resp= function (df) {
-  param = param_all_HR
+  param = param_all_Resp
   results=
     tryCatch(
       #this is the try part if it gets error here it will move to the error part
@@ -456,6 +481,10 @@ get_rqa_Resp= function (df) {
         return(results_fail)
       }
   )
+  
+  delay=param$delay
+  embed=param$emddim
+  radius=param$radius
   RR_Resp = results$RR
   DET_Resp = results$DET
   maxL_Resp = results$maxL #maximal trajectory
@@ -463,9 +492,10 @@ get_rqa_Resp= function (df) {
   ENTR_Resp = results$ENTR
   LAM_Resp=results$LAM
   TT_Resp = results$TT
-  rqa_df = data.frame(RR_Resp,DET_Resp,maxL_Resp,L_Resp,ENTR_Resp,LAM_Resp,TT_Resp)
+  rqa_df = data.frame(delay,embed,radius,RR_Resp,DET_Resp,maxL_Resp,L_Resp,ENTR_Resp,LAM_Resp,TT_Resp)
   return(rqa_df)
 }
+
 get_rqa_Resp(testing)
 
 final_results = data.frame()
@@ -483,7 +513,8 @@ for (f in prep_files) {
   print(n)
   n=n+1
 }
-
+mean(final_results$RR_HR)
+mean(final_results$RR_Resp)
 
 write.csv(final_results, "final_results.csv", row.names = F)
 ```
@@ -495,9 +526,6 @@ write.csv(final_results, "final_results.csv", row.names = F)
  - statistically compare the crqa indexes in real and shuffled pairs
  
 ```{r shuffle}
-test=read.csv(file="PreprocessedData/Study1_G3_T2_TurnTaking.csv",header=T)
-test$Resp1S_shuffled=sample(test$Resp1S)
-
 #function for creating a shuffled data
 shuffle = function (f) {
   dat=read.csv(f,header = T)
@@ -525,6 +553,7 @@ lapply(prep_files,shuffle)
 shuffled_list = list.files("ShuffledData", full.names = T)
 
 final_results_shuffled = data.frame()
+n=1
 for (f in shuffled_list) {
   dat = read.csv(file=f,header = T)
   
@@ -534,9 +563,13 @@ for (f in shuffled_list) {
   
   result=cbind(info,rqaHR,rqaResp)
   final_results_shuffled=rbind(final_results_shuffled,result)
+  print(n)
+  n=n+1
 }
 
-write.csv(final_results_shuffled,"final_results_shuffled",row.names=F)
+write.csv(final_results_shuffled,"final_results_shuffled.csv",row.names=F)
+
+
 ```
 
 ```{r compare shuffle}
@@ -547,14 +580,51 @@ final_results_shuffled$type = factor("shuffle")
 normal_shuffled = rbind(final_results,final_results_shuffled)
 
 library(lmerTest)
-RR_HR_shuf = lmer(RR_HR ~ type+(1|group),normal_shuffled)
-summary(RR_HR_shuf)
+RR_HR_shuf = lmer(RR_HR ~ type + (1|group),normal_shuffled)
+summary(RR_HR_shuf) #not significant
 
+DET_HR_shuf = lmer(DET_HR ~ type+(1|group),normal_shuffled)
+summary(DET_HR_shuf) #significant
+
+ENTR_HR_shuf = lmer(ENTR_HR ~ type+(1|group),normal_shuffled)
+summary(ENTR_HR_shuf) #significant
+
+L_HR_shuf = lmer(L_HR ~ type+(1|group),normal_shuffled)
+summary(L_HR_shuf) #significant
+
+maxL_HR_shuf = lmer(maxL_HR ~ type+(1|group),normal_shuffled)
+summary(maxL_HR_shuf) #significant
+
+LAM_HR_shuf = lmer(LAM_HR ~ type+(1|group),normal_shuffled)
+summary(LAM_HR_shuf) #significant
+
+TT_HR_shuf = lmer(TT_HR ~ type+(1|group),normal_shuffled)
+summary(TT_HR_shuf) #significant
+
+
+#Respiration now
 RR_Resp_shuf = lmer(RR_Resp ~ type+(1|group),normal_shuffled)
-summary(RR_Resp_shuf)
+summary(RR_Resp_shuf) #significant
 
-#other indeces are 0 or NA therefore it doesnt make sense to compare them
+DET_Resp_shuf = lmer(DET_Resp ~ type+(1|group),normal_shuffled)
+summary(DET_Resp_shuf) #significant
+
+ENTR_Resp_shuf = lmer(ENTR_Resp ~ type+(1|group),normal_shuffled)
+summary(ENTR_Resp_shuf) #significant
+
+L_Resp_shuf = lmer(L_Resp ~ type+(1|group),normal_shuffled)
+summary(L_Resp_shuf) #significant
+
+maxL_Resp_shuf = lmer(maxL_Resp ~ type+(1|group),normal_shuffled)
+summary(maxL_Resp_shuf) #significant
+
+LAM_Resp_shuf = lmer(LAM_Resp ~ type+(1|group),normal_shuffled)
+summary(LAM_Resp_shuf) #significant
+
+TT_Resp_shuf = lmer(TT_Resp ~ type+(1|group),normal_shuffled)
+summary(TT_Resp_shuf) #significant
 ```
+
 ### TRICKY! Creating controls: surrogate pair controls
  - Per each real pair, identify at least one surrogate pair (matching one of the participants, with somebody doing the same task, but in a different pair). Tip: Celine will share a commented script
  - Run  crqa on all the surrogate pairs and save the output. NB. which delay, embed, radius parameters should you use?
@@ -591,11 +661,11 @@ groups = as.numeric(unique(groups))
 #create all possible combinations and save as data frame
 combinations=groups %>% combs(m=2) %>%as.data.frame()
 
-#now create also mirrored combinations i.e. instead 1 and 2 => 2 and 1
-mirror=data.frame(V1=combinations$V2,V2=combinations$V1)
-
-#merge them with combinations to have really all possible combinations
-combinations = rbind(combinations,mirror)
+# #now create also mirrored combinations i.e. instead 1 and 2 => 2 and 1
+# mirror=data.frame(V1=combinations$V2,V2=combinations$V1)
+# 
+# #merge them with combinations to have really all possible combinations
+# combinations = rbind(combinations,mirror)
 
 #list all conditions that are in that study
 conditions=unique(as.character(inf$condition))
@@ -609,48 +679,55 @@ for(cond in conditions) {
     file2 = paste("Study1_G", combinations$V2[g],sep ="")
     
     #from list of files extract those that match file1&2 +condition
-    file1 = study1_flist[grepl(file1,study1_flist) & grepl(cond,study1_flist)]
-    file2 = study1_flist[grepl(file2,study1_flist) & grepl(cond,study1_flist)]
+    file1 = try(study1_flist[grepl(file1,study1_flist) & grepl(cond,study1_flist)])
+    file2 = try(study1_flist[grepl(file2,study1_flist) & grepl(cond,study1_flist)])
     
-    #read the files in
-    dat_1 = read.csv(file1, header=T)
-    dat_2 = read.csv(file2, header=T)
-    
-    #make sure they have the same lenght so that you can run crqa on them
-    if (nrow(dat_1)>nrow(dat_2)){
-      dat_1=dat_1[1:nrow(dat_2),]
+        #some combinations doesnt exist because those were the bad files so if that happens, the following parts will be skipped
+    if (isempty(file1)==FALSE & isempty(file2)==FALSE) {
+ #read the files in
+      dat_1 = read.csv(file1, header=T)
+      dat_2 = read.csv(file2, header=T)
+      
+      
+      #make sure they have the same lenght so that you can run crqa on them
+      if (nrow(dat_1)>nrow(dat_2)){
+        dat_1=dat_1[1:nrow(dat_2),]
+      } else {
+        dat_2=dat_2[1:nrow(dat_1),]
+      }
+      
+      #create new files that combine data from 4 people
+      #dat1_1 + dat2_2
+      combination_1=data.frame(Resp1=dat_1$Resp1,Resp2=dat_2$Resp2,HR1=dat_1$HR1,HR2=dat_2$HR2,Resp1S=dat_1$Resp1S,Resp2S=dat_2$Resp2S,HR1S=dat_1$HR1S,HR2S=dat_2$HR2S)
+      
+      #dat_2_1 + dat_1_2
+      combination_2=data.frame(Resp1=dat_2$Resp1,Resp2=dat_1$Resp2,HR1=dat_2$HR1,HR2=dat_1$HR2,Resp1S=dat_2$Resp1S,Resp2S=dat_1$Resp2S,HR1S=dat_2$HR1S,HR2S=dat_1$HR2S)
+      
+      #dat_1_1 + dat_2_1
+      combination_3=data.frame(Resp1=dat_1$Resp1,Resp2=dat_2$Resp1,HR1=dat_1$HR1,HR2=dat_2$HR1,Resp1S=dat_1$Resp1S,Resp2S=dat_2$Resp1S,HR1S=dat_1$HR1S,HR2S=dat_2$HR1S)
+      
+      #dat_2_2 + dat_1_2
+      combination_4=data.frame(Resp1=dat_2$Resp2,Resp2=dat_1$Resp2,HR1=dat_2$HR2,HR2=dat_1$HR2,Resp1S=dat_2$Resp2S,Resp2S=dat_1$Resp2S,HR1S=dat_2$HR2S,HR2S=dat_1$HR2S)
+      
+      #create variable with directory name to save new files
+      save_directory = "SurrogateData/"
+      
+      #create names for the combined files
+      combination_1_name = paste0(save_directory,"Study1_",combinations$V1[g],"_and_",combinations$V2[g],"_v1_",cond,".csv")
+      combination_2_name = paste0(save_directory,"Study1_",combinations$V1[g],"_and_",combinations$V2[g],"_v2_",cond,".csv")
+      combination_3_name = paste0(save_directory,"Study1_",combinations$V1[g],"_and_",combinations$V2[g],"_v3_",cond,".csv")
+      combination_4_name = paste0(save_directory,"Study1_",combinations$V1[g],"_and_",combinations$V2[g],"_v4_",cond,".csv")
+      
+      #save the new files
+      write.csv(x=combination_1,file=combination_1_name)
+      write.csv(x=combination_2,file=combination_2_name)
+      write.csv(x=combination_3,file=combination_3_name)
+      write.csv(x=combination_4,file=combination_4_name)
     } else {
-      dat_2=dat_2[1:nrow(dat_1),]
-    }
-    
-    #create new files that combine data from 4 people
-    #dat1_1 + dat2_2
-    combination_1=data.frame(Resp1=dat_1$Resp1,Resp2=dat_2$Resp2,HR1=dat_1$HR1,HR2=dat_2$HR2,Resp1S=dat_1$Resp1S,Resp2S=dat_2$Resp2S,HR1S=dat_1$HR1S,HR2S=dat_2$HR2S)
-    
-    #dat_2_1 + dat_1_2
-    combination_2=data.frame(Resp1=dat_2$Resp1,Resp2=dat_1$Resp2,HR1=dat_2$HR1,HR2=dat_1$HR2,Resp1S=dat_2$Resp1S,Resp2S=dat_1$Resp2S,HR1S=dat_2$HR1S,HR2S=dat_1$HR2S)
-    
-    #dat_1_1 + dat_2_1
-    combination_3=data.frame(Resp1=dat_1$Resp1,Resp2=dat_2$Resp1,HR1=dat_1$HR1,HR2=dat_2$HR1,Resp1S=dat_1$Resp1S,Resp2S=dat_2$Resp1S,HR1S=dat_1$HR1S,HR2S=dat_2$HR1S)
-    
-    #dat_2_2 + dat_1_2
-    combination_4=data.frame(Resp1=dat_2$Resp2,Resp2=dat_1$Resp2,HR1=dat_2$HR2,HR2=dat_1$HR2,Resp1S=dat_2$Resp2S,Resp2S=dat_1$Resp2S,HR1S=dat_2$HR2S,HR2S=dat_1$HR2S)
-    
-    #create variable with directory name to save new files
-    save_directory = "SurrogateData/"
-    
-    #create names for the combined files
-    combination_1_name = paste0(save_directory,"Study1_",combinations$V1[g],"_and_",combinations$V2[g],"_v1_",cond,".csv")
-    combination_2_name = paste0(save_directory,"Study1_",combinations$V1[g],"_and_",combinations$V2[g],"_v2_",cond,".csv")
-    combination_3_name = paste0(save_directory,"Study1_",combinations$V1[g],"_and_",combinations$V2[g],"_v3_",cond,".csv")
-    combination_4_name = paste0(save_directory,"Study1_",combinations$V1[g],"_and_",combinations$V2[g],"_v4_",cond,".csv")
-    
-    #save the new files
-    write.csv(x=combination_1,file=combination_1_name)
-    write.csv(x=combination_2,file=combination_2_name)
-    write.csv(x=combination_3,file=combination_3_name)
-    write.csv(x=combination_4,file=combination_4_name)
-    
+      
+      print("Such combination doesn't exist. I'm moving on.")
+      
+      }
   }
 }
 ```
@@ -678,10 +755,10 @@ groups = as.numeric(unique(groups))
 combinations=groups %>% combs(m=2) %>%as.data.frame()
 
 #now create also mirrored combinations i.e. instead 1 and 2 => 2 and 1
-mirror=data.frame(V1=combinations$V2,V2=combinations$V1)
-
-#merge them with combinations to have really all possible combinations
-combinations = rbind(combinations,mirror)
+# mirror=data.frame(V1=combinations$V2,V2=combinations$V1)
+# 
+# #merge them with combinations to have really all possible combinations
+# combinations = rbind(combinations,mirror)
 
 #list all conditions that are in that study
 conditions=unique(as.character(inf$condition))
@@ -695,56 +772,209 @@ for(cond in conditions) {
     file2 = paste("Study2_G", combinations$V2[g],sep ="")
     
     #from list of files extract those that match file1&2 +condition
-    file1 = study2_flist[grepl(file1,study2_flist) & grepl(cond,study2_flist)]
-    file2 = study2_flist[grepl(file2,study2_flist) & grepl(cond,study2_flist)]
+    file1 = try(study2_flist[grepl(file1,study2_flist) & grepl(cond,study2_flist)])
+    file2 = try(study2_flist[grepl(file2,study2_flist) & grepl(cond,study2_flist)])
     
-    #read the files in
-    dat_1 = read.csv(file1, header=T)
-    dat_2 = read.csv(file2, header=T)
-    
-    #make sure they have the same lenght so that you can run crqa on them
-    if (nrow(dat_1)>nrow(dat_2)){
-      dat_1=dat_1[1:nrow(dat_2),]
+        #some combinations doesnt exist because those were the bad files so if that happens, the following parts will be skipped
+    if (isempty(file1)==FALSE & isempty(file2)==FALSE) {
+ #read the files in
+      dat_1 = read.csv(file1, header=T)
+      dat_2 = read.csv(file2, header=T)
+      
+      
+      #make sure they have the same lenght so that you can run crqa on them
+      if (nrow(dat_1)>nrow(dat_2)){
+        dat_1=dat_1[1:nrow(dat_2),]
+      } else {
+        dat_2=dat_2[1:nrow(dat_1),]
+      }
+      
+      #create new files that combine data from 4 people
+      #dat1_1 + dat2_2
+      combination_1=data.frame(Resp1=dat_1$Resp1,Resp2=dat_2$Resp2,HR1=dat_1$HR1,HR2=dat_2$HR2,Resp1S=dat_1$Resp1S,Resp2S=dat_2$Resp2S,HR1S=dat_1$HR1S,HR2S=dat_2$HR2S)
+      
+      #dat_2_1 + dat_1_2
+      combination_2=data.frame(Resp1=dat_2$Resp1,Resp2=dat_1$Resp2,HR1=dat_2$HR1,HR2=dat_1$HR2,Resp1S=dat_2$Resp1S,Resp2S=dat_1$Resp2S,HR1S=dat_2$HR1S,HR2S=dat_1$HR2S)
+      
+      #dat_1_1 + dat_2_1
+      combination_3=data.frame(Resp1=dat_1$Resp1,Resp2=dat_2$Resp1,HR1=dat_1$HR1,HR2=dat_2$HR1,Resp1S=dat_1$Resp1S,Resp2S=dat_2$Resp1S,HR1S=dat_1$HR1S,HR2S=dat_2$HR1S)
+      
+      #dat_2_2 + dat_1_2
+      combination_4=data.frame(Resp1=dat_2$Resp2,Resp2=dat_1$Resp2,HR1=dat_2$HR2,HR2=dat_1$HR2,Resp1S=dat_2$Resp2S,Resp2S=dat_1$Resp2S,HR1S=dat_2$HR2S,HR2S=dat_1$HR2S)
+      
+      #create variable with directory name to save new files
+      save_directory = "SurrogateData/"
+      
+      #create names for the combined files
+      combination_1_name = paste0(save_directory,"Study2_",combinations$V1[g],"_and_",combinations$V2[g],"_v1_",cond,".csv")
+      combination_2_name = paste0(save_directory,"Study2_",combinations$V1[g],"_and_",combinations$V2[g],"_v2_",cond,".csv")
+      combination_3_name = paste0(save_directory,"Study2_",combinations$V1[g],"_and_",combinations$V2[g],"_v3_",cond,".csv")
+      combination_4_name = paste0(save_directory,"Study2_",combinations$V1[g],"_and_",combinations$V2[g],"_v4_",cond,".csv")
+      
+      #save the new files
+      write.csv(x=combination_1,file=combination_1_name)
+      write.csv(x=combination_2,file=combination_2_name)
+      write.csv(x=combination_3,file=combination_3_name)
+      write.csv(x=combination_4,file=combination_4_name)
     } else {
-      dat_2=dat_2[1:nrow(dat_1),]
-    }
-    
-    #create new files that combine data from 4 people
-    #dat1_1 + dat2_2
-    combination_1=data.frame(Resp1=dat_1$Resp1,Resp2=dat_2$Resp2,HR1=dat_1$HR1,HR2=dat_2$HR2,Resp1S=dat_1$Resp1S,Resp2S=dat_2$Resp2S,HR1S=dat_1$HR1S,HR2S=dat_2$HR2S)
-    
-    #dat_2_1 + dat_1_2
-    combination_2=data.frame(Resp1=dat_2$Resp1,Resp2=dat_1$Resp2,HR1=dat_2$HR1,HR2=dat_1$HR2,Resp1S=dat_2$Resp1S,Resp2S=dat_1$Resp2S,HR1S=dat_2$HR1S,HR2S=dat_1$HR2S)
-    
-    #dat_1_1 + dat_2_1
-    combination_3=data.frame(Resp1=dat_1$Resp1,Resp2=dat_2$Resp1,HR1=dat_1$HR1,HR2=dat_2$HR1,Resp1S=dat_1$Resp1S,Resp2S=dat_2$Resp1S,HR1S=dat_1$HR1S,HR2S=dat_2$HR1S)
-    
-    #dat_2_2 + dat_1_2
-    combination_4=data.frame(Resp1=dat_2$Resp2,Resp2=dat_1$Resp2,HR1=dat_2$HR2,HR2=dat_1$HR2,Resp1S=dat_2$Resp2S,Resp2S=dat_1$Resp2S,HR1S=dat_2$HR2S,HR2S=dat_1$HR2S)
-    
-    #create variable with directory name to save new files
-    save_directory = "SurrogateData/"
-    
-    #create names for the combined files
-    combination_1_name = paste0(save_directory,"Study2_",combinations$V1[g],"_and_",combinations$V2[g],"_v1_",cond,".csv")
-    combination_2_name = paste0(save_directory,"Study2_",combinations$V1[g],"_and_",combinations$V2[g],"_v2_",cond,".csv")
-    combination_3_name = paste0(save_directory,"Study2_",combinations$V1[g],"_and_",combinations$V2[g],"_v3_",cond,".csv")
-    combination_4_name = paste0(save_directory,"Study2_",combinations$V1[g],"_and_",combinations$V2[g],"_v4_",cond,".csv")
-    
-    #save the new files
-    write.csv(x=combination_1,file=combination_1_name)
-    write.csv(x=combination_2,file=combination_2_name)
-    write.csv(x=combination_3,file=combination_3_name)
-    write.csv(x=combination_4,file=combination_4_name)
-    
+      
+      print("Such combination doesn't exist. I'm moving on.")
+      
+      }
   }
 }
 ```
+
+```{r crqa on surrogate}
+#tweak the get_info function to work on surrogate correctly
+get_info_surrogate = function(file) {
+  pattern="[[:punct:]]" #regex for punctuation so I'll split the string by underscores
+  name=file %>% stringr::str_split(pattern) %>% unlist()
+  study=name[2]
+  group=paste(name[3],name[4],name[5],sep="_")
+  trial=name[6]
+  condition=name[7]
+  
+  info=as.data.frame(cbind(study,group,trial,condition))
+  return(info)
+}
+
+surrogates_list = list.files("SurrogateData", full.names = T)
+
+
+final_results_surrogate = data.frame()
+n=1
+for (f in surrogates_list) {
+  dat = read.csv(file=f,header = T)
+  
+  rqaHR=get_rqa_HR(dat)
+  rqaResp=get_rqa_Resp(dat)
+  info=get_info_surrogate(file=f)
+  
+  result=cbind(info,rqaHR,rqaResp)
+  final_results_surrogate=rbind(final_results_surrogate,result)
+  
+  print(n)
+  n=1+n
+}
+
+write.csv(final_results_surrogate,"final_results_surrogate.csv", row.names = F)
+```
+
+```{r difference?}
+
+final_results_surrogate$type = factor("surrogate")
+
+#merge them into one df
+normal_surrogate = rbind(final_results,final_results_surrogate)
+normal_surrogate$condition = relevel(normal_surrogate$condition,ref="TurnTaking")
+
+RR_HR_sur = lmer(RR_HR ~ type*condition+(1|group),normal_surrogate)
+summary(RR_HR_sur) #not significant
+
+DET_HR_sur = lmer(DET_HR ~ type*condition+(1|group),normal_surrogate)
+summary(DET_HR_sur) # no
+
+ENTR_HR_sur = lmer(ENTR_HR ~ type*condition+(1|group),normal_surrogate)
+summary(ENTR_HR_sur) #no
+
+L_HR_sur = lmer(L_HR ~ type*condition+(1|group),normal_surrogate)
+summary(L_HR_sur) #no
+
+maxL_HR_sur = lmer(maxL_HR ~ type*condition+(1|group),normal_surrogate)
+summary(maxL_HR_sur) #yes, TurnTaking x SelfPaced
+
+LAM_HR_sur = lmer(LAM_HR ~ type*condition+(1|group),normal_surrogate)
+summary(LAM_HR_sur) #no
+
+TT_HR_sur = lmer(TT_HR ~ type*condition+(1|group),normal_surrogate)
+summary(TT_HR_sur) #no
+
+
+#Respiration now
+RR_Resp_sur = lmer(RR_Resp ~ type*condition+(1|group),normal_surrogate)
+summary(RR_Resp_sur) #no, good I can continue
+
+DET_Resp_sur = lmer(DET_Resp ~ type*condition +(1|group),normal_surrogate)
+summary(DET_Resp_sur) #no
+
+ENTR_Resp_sur = lmer(ENTR_Resp ~ type*condition+(1|group),normal_surrogate)
+summary(ENTR_Resp_sur) #significant condition but interaction no
+
+L_Resp_sur = lmer(L_Resp ~ type*condition+(1|group),normal_surrogate)
+summary(L_Resp_sur) #no interaction
+
+maxL_Resp_sur = lmer(maxL_Resp ~ type*condition+(1|group),normal_surrogate)
+summary(maxL_Resp_sur) #no
+
+LAM_Resp_sur = lmer(LAM_Resp ~ type*condition+(1|group),normal_surrogate)
+summary(LAM_Resp_sur) #no
+
+TT_Resp_sur = lmer(TT_Resp ~ type*condition+(1|group),normal_surrogate)
+summary(TT_Resp_sur) #no
+
+#no difference so if any coordination will be find than only because of doing the same task
+#exception is TurnTaking for maxL which however doesnt make much sense because there we didnt expect any coordination except for PC determined pace and turn taking
+```
+
 
 
 ### Testing effects of conditions
  - make a (probably  underpowered) mixed model testing effects of the different conditions on heart rate and respiration coordination
  - N.B: would it make sense to include surrogate pairs? and if so how? what would that tell you?
+ 
+ I'm including surrogate pairs (using merged dataframe) and type as random effect (no systematic difference was found). Because there is no difference between real pairs and surrogate (in no condition) I can use all these data to increase power of the analysis.
+ 
+```{r effect of condition}
+#make TurnTaking baseline, where we expect coordination only because of computer determined rhythm
+final_results$condition = relevel(final_results$condition,ref="TurnTaking")
+
+#first models for HR
+model_RR_HR = lmer(RR_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_RR_HR) #not significant so I can continue
+
+model_DET_HR = lmer(DET_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_DET_HR) #no
+
+model_ENTR_HR = lmer(ENTR_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_ENTR_HR) #no
+
+model_L_HR = lmer(L_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_L_HR) #no
+
+model_maxL_HR = lmer(maxL_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_maxL_HR) #everything except Conversation, SelfPaced has biggest difference
+
+model_LAM_HR = lmer(LAM_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_LAM_HR) #SelfPaced
+
+model_TT_HR = lmer(TT_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_TT_HR) #no
+
+
+#now models for respiration
+model_RR_Resp = lmer(RR_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_RR_Resp) #SelfPaced+Synchronous can't go on, couldnt interpret...conversation is still in the game
+
+model_DET_Resp = lmer(DET_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_DET_Resp) #not significant
+
+model_ENTR_Resp = lmer(ENTR_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_ENTR_Resp) #no
+
+model_L_Resp = lmer(L_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_L_Resp) #no
+
+model_maxL_Resp = lmer(maxL_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_maxL_Resp) #no
+
+model_LAM_Resp = lmer(LAM_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_LAM_Resp) #no
+
+model_TT_Resp = lmer(TT_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
+summary(model_TT_Resp) #no
+```
+ 
 
 ### Effects of respiration coordination on heart rate coordination
  - describe how you would test those.
