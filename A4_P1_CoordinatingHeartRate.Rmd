@@ -923,7 +923,6 @@ summary(TT_Resp_sur) #no
  - make a (probably  underpowered) mixed model testing effects of the different conditions on heart rate and respiration coordination
  - N.B: would it make sense to include surrogate pairs? and if so how? what would that tell you?
  
- I'm including surrogate pairs (using merged dataframe) and type as random effect (no systematic difference was found). Because there is no difference between real pairs and surrogate (in no condition) I can use all these data to increase power of the analysis.
  
 ```{r effect of condition}
 #make TurnTaking baseline, where we expect coordination only because of computer determined rhythm
@@ -957,7 +956,7 @@ model_RR_Resp = lmer(RR_Resp ~ condition+(1|group)+(1|study), data=final_results
 summary(model_RR_Resp) #SelfPaced+Synchronous can't go on, couldnt interpret...conversation is still in the game
 
 model_DET_Resp = lmer(DET_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
-summary(model_DET_Resp) #not significant
+summary(model_DET_Resp) #no
 
 model_ENTR_Resp = lmer(ENTR_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_ENTR_Resp) #no
@@ -975,6 +974,39 @@ model_TT_Resp = lmer(TT_Resp ~ condition+(1|group)+(1|study), data=final_results
 summary(model_TT_Resp) #no
 ```
  
+Now I'm including surrogate pairs (using merged dataframe) and type as random effect (no systematic difference was found). Because there is no difference between real pairs and surrogate (in no condition) I can use all these data to increase power of the analysis. Because what if the effect I found was just result of underpowered model
+
+```{r +surrogate =more power}
+
+#first models for HR
+model_RR_HR = lmer(RR_HR ~ condition+(1|group)+(1|study)+(1|type), data=normal_surrogate,REML=F)
+summary(model_RR_HR) #still good
+
+model_DET_HR = lmer(DET_HR ~ condition+(1|group)+(1|study)+(1|type), data=normal_surrogate,REML=F)
+summary(model_DET_HR) #this made SelfPaced significant
+
+model_ENTR_HR = lmer(ENTR_HR ~ condition+(1|group)+(1|study)+(1|type), data=normal_surrogate,REML=F)
+summary(model_ENTR_HR) #no
+
+model_L_HR = lmer(L_HR ~ condition+(1|group)+(1|study)+(1|type), data=normal_surrogate,REML=F)
+summary(model_L_HR) #no
+
+model_maxL_HR = lmer(maxL_HR ~ condition+(1|group)+(1|study)+(1|type), data=normal_surrogate,REML=F)
+summary(model_maxL_HR) #and now I lost my effect
+
+model_LAM_HR = lmer(LAM_HR ~ condition+(1|group)+(1|study)+(1|type), data=normal_surrogate,REML=F)
+summary(model_LAM_HR) #SelfPaced, this hold up
+
+model_TT_HR = lmer(TT_HR ~ condition+(1|group)+(1|study)+(1|type), data=normal_surrogate,REML=F)
+summary(model_TT_HR) #no
+
+
+#now models for respiration
+model_RR_Resp = lmer(RR_Resp ~ condition+(1|group)+(1|study)+(1|type), data=normal_surrogate)
+summary(model_RR_Resp) #and now everythins significant so I can't interpret anything so no sense in carrying on
+```
+
+
 
 ### Effects of respiration coordination on heart rate coordination
  - describe how you would test those.
