@@ -268,8 +268,8 @@ plotting_Resp = function(data) {
   return(Resp)
 }
 
-# testing=rm_outliers(pair_1_1)
-# testing=downsample(testing)
+ testing=rm_outliers(pair_1_1)
+testing=downsample(testing)
 # testing=scale_fun(testing)
 # test_HR=plotting_HR(testing)
 # test_HR
@@ -333,6 +333,16 @@ for (f in prep_files) {
 }
 
 #now these plots are saved in the folder and I can view them outside of R and delete bad files
+
+#to get a nice table of excluded files list files in fullData and PreprocessedData folders
+all_prep_d=data.frame(files=list.files("PreprocessedAll"))
+used_prep_d=as.factor(list.files("PreprocessedData"))
+
+#1-2 will give me the bad files
+`%not in%` <- function (x, table) is.na(match(x, table, nomatch=NA_integer_))
+
+removed_data=subset(all_prep_d, files %not in% used_prep_d)
+write.csv2(removed_data,"removed_d.csv",row.names = F)
 ```
 
 
@@ -1010,4 +1020,12 @@ summary(model_RR_Resp) #and now everythins significant so I can't interpret anyt
 
 ### Effects of respiration coordination on heart rate coordination
  - describe how you would test those.
+ Predicting HR from Resp, i.e L of HR predicted from Resp L or RR or DET or whatever
  - Optional: run  the models and report them
+```{r effects of resp on HR coordination}
+model_HR_Resp_1 = lmer(maxL_HR ~ ENTR_Resp*condition + (1|group)+(1|study),data=normal_surrogate)
+summary(model_HR_Resp_1)
+#no combination seems to be significant - should I report that???
+```
+ 
+ 
