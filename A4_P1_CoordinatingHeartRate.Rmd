@@ -877,54 +877,69 @@ final_results_surrogate$type = factor("surrogate")
 
 #merge them into one df
 normal_surrogate = rbind(final_results,final_results_surrogate)
-normal_surrogate$condition = relevel(normal_surrogate$condition,ref="TurnTaking")
+normal_surrogate$condition = relevel(normal_surrogate$condition,ref="Synchronous")
 
 RR_HR_sur = lmer(RR_HR ~ type*condition+(1|group),normal_surrogate)
 summary(RR_HR_sur) #not significant
+difflsmeans(RR_HR_sur) #no
 
 DET_HR_sur = lmer(DET_HR ~ type*condition+(1|group),normal_surrogate)
 summary(DET_HR_sur) # no
+difflsmeans(DET_HR_sur) #no
 
 ENTR_HR_sur = lmer(ENTR_HR ~ type*condition+(1|group),normal_surrogate)
 summary(ENTR_HR_sur) #no
+difflsmeans(ENTR_HR_sur) #no
 
 L_HR_sur = lmer(L_HR ~ type*condition+(1|group),normal_surrogate)
 summary(L_HR_sur) #no
+difflsmeans(L_HR_sur) #no
 
 maxL_HR_sur = lmer(maxL_HR ~ type*condition+(1|group),normal_surrogate)
-summary(maxL_HR_sur) #yes, TurnTaking x SelfPaced
+summary(maxL_HR_sur) #no
+difflsmeans(maxL_HR_sur) #normSelfPaced-surSelfPaced
 
 LAM_HR_sur = lmer(LAM_HR ~ type*condition+(1|group),normal_surrogate)
 summary(LAM_HR_sur) #no
+difflsmeans(LAM_HR_sur)
 
 TT_HR_sur = lmer(TT_HR ~ type*condition+(1|group),normal_surrogate)
 summary(TT_HR_sur) #no
+difflsmeans(TT_HR_sur) #no
 
 
 #Respiration now
 RR_Resp_sur = lmer(RR_Resp ~ type*condition+(1|group),normal_surrogate)
 summary(RR_Resp_sur) #no, good I can continue
+difflsmeans(RR_Resp_sur) #no
 
 DET_Resp_sur = lmer(DET_Resp ~ type*condition +(1|group),normal_surrogate)
 summary(DET_Resp_sur) #no
+difflsmeans(DET_Resp_sur) #no
 
 ENTR_Resp_sur = lmer(ENTR_Resp ~ type*condition+(1|group),normal_surrogate)
 summary(ENTR_Resp_sur) #significant condition but interaction no
+difflsmeans(ENTR_Resp_sur) #no
 
 L_Resp_sur = lmer(L_Resp ~ type*condition+(1|group),normal_surrogate)
 summary(L_Resp_sur) #no interaction
+difflsmeans(L_Resp_sur) #no
 
 maxL_Resp_sur = lmer(maxL_Resp ~ type*condition+(1|group),normal_surrogate)
 summary(maxL_Resp_sur) #no
+difflsmeans(maxL_Resp_sur) #SelfPaced-norm x sur
 
 LAM_Resp_sur = lmer(LAM_Resp ~ type*condition+(1|group),normal_surrogate)
 summary(LAM_Resp_sur) #no
+difflsmeans(LAM_Resp_sur) #no
 
 TT_Resp_sur = lmer(TT_Resp ~ type*condition+(1|group),normal_surrogate)
 summary(TT_Resp_sur) #no
+difflsmeans(TT_Resp_sur)
 
 #no difference so if any coordination will be find than only because of doing the same task
-#exception is TurnTaking for maxL which however doesnt make much sense because there we didnt expect any coordination except for PC determined pace and turn taking
+#exceptions: maxL_HR_sur: SelfPaced
+            #maxL_Resp_sur: SelfPaced 
 ```
 
 
@@ -935,53 +950,69 @@ summary(TT_Resp_sur) #no
  
  
 ```{r effect of condition}
-#make TurnTaking baseline, where we expect coordination only because of computer determined rhythm
-final_results$condition = relevel(final_results$condition,ref="TurnTaking")
+#make Synchronous baseline, where we expect coordination only because of computer determined rhythm
+final_results$condition = relevel(final_results$condition,ref="Synchronous")
 
 #first models for HR
 model_RR_HR = lmer(RR_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_RR_HR) #not significant so I can continue
+difflsmeans(model_RR_HR) #no
 
 model_DET_HR = lmer(DET_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_DET_HR) #no
+difflsmeans(model_DET_HR) #no
 
 model_ENTR_HR = lmer(ENTR_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_ENTR_HR) #no
+difflsmeans(model_ENTR_HR) #no
 
 model_L_HR = lmer(L_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_L_HR) #no
+difflsmeans(model_L_HR) #no
 
 model_maxL_HR = lmer(maxL_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
-summary(model_maxL_HR) #everything except Conversation, SelfPaced has biggest difference
+summary(model_maxL_HR) #SelfPaced and TurnTaking
+difflsmeans(model_maxL_HR) #yes Synchronous-SelfPaced, Synchronous-TurnTaking, SelfPaced-Conversation, SelfPaced-TurnTaking
 
 model_LAM_HR = lmer(LAM_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
-summary(model_LAM_HR) #SelfPaced
+summary(model_LAM_HR) #no
+difflsmeans(model_LAM_HR) #yes TurnTaking-SelfPaced
+
 
 model_TT_HR = lmer(TT_HR ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_TT_HR) #no
+difflsmeans(model_TT_HR) #no
 
 
 #now models for respiration
 model_RR_Resp = lmer(RR_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
-summary(model_RR_Resp) #SelfPaced+Synchronous can't go on, couldnt interpret...conversation is still in the game
+summary(model_RR_Resp) #TurnTaking
+difflsmeans(model_RR_Resp) #yes - Synchronous-TurnTaking, TurnTaking-SelfPaced - these cannot be trusted, ignore them later
 
 model_DET_Resp = lmer(DET_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_DET_Resp) #no
+difflsmeans(model_DET_Resp) #no
 
 model_ENTR_Resp = lmer(ENTR_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
-summary(model_ENTR_Resp) #no
+summary(model_ENTR_Resp) #TurnTaking and Conversation
+difflsmeans(model_ENTR_Resp) #Synchronous-TurnTaking (nope), Synchronous-Conversation, TurnTaking-SelfPaced (nope), SelfPaced-Conversation
+
 
 model_L_Resp = lmer(L_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
-summary(model_L_Resp) #no
+summary(model_L_Resp) #TurnTaking and Conversation
+difflsmeans(model_L_Resp) #Synchronous-TurnTaking (nope), Synchronous-Conversation, TurnTaking-SelfPaced (nope), SelfPaced-Conversation
 
 model_maxL_Resp = lmer(maxL_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_maxL_Resp) #no
+difflsmeans(model_maxL_Resp) #no
 
 model_LAM_Resp = lmer(LAM_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
 summary(model_LAM_Resp) #no
+difflsmeans(model_LAM_Resp) #no
 
 model_TT_Resp = lmer(TT_Resp ~ condition+(1|group)+(1|study), data=final_results,REML=F)
-summary(model_TT_Resp) #no
+summary(model_TT_Resp) #Conversation
+difflsmeans(model_TT_Resp) #Synchronous-Conversation, TurnTaking-SelfPaced (nope), SelfPaced-Conversation
 ```
  
 Now I'm including surrogate pairs (using merged dataframe) and type as random effect (no systematic difference was found). Because there is no difference between real pairs and surrogate (in no condition) I can use all these data to increase power of the analysis. Because what if the effect I found was just result of underpowered model
