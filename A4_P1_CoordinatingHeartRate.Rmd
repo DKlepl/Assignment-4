@@ -583,6 +583,10 @@ write.csv(final_results_shuffled,"final_results_shuffled.csv",row.names=F)
 ```
 
 ```{r compare shuffle}
+final_results_shuffled=read.csv('final_results_shuffled.csv')
+final_results = read.csv("final_results.csv")
+
+
 final_results$type = factor("normal")
 final_results_shuffled$type = factor("shuffle")
 
